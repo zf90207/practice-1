@@ -1,0 +1,80 @@
+name: "Terraform"
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'terraform/**'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'terraform/**'
+
+jobs:
+  terraform:
+    name: "Terraform"
+    runs-on: ubuntu-latest
+    env: 
+      working-directory: ./terraform
+    steps:
+      # Checkout the code
+      # Marketplace: https://github.com/marketplace/actions/checkout
+      - name: "Setup - Checkout"
+        uses: actions/checkout@v2.1.0
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-region: ap-southeast-1
+
+      # Downloads a specific version of Terraform CLI and adds it to PATH
+      # Marketplace: https://github.com/marketplace/actions/hashicorp-setup-terraform
+      - name: "Setup - Terraform CLI"
+        uses: hashicorp/setup-terraform@v1.2.1
+
+      # Init pulls credentials from the .aws/credentials file by default
+      - name: "Run - Terraform Init"
+        run: terraform init -input=false
+        working-directory: ${{env.working-directory}}
+
+      - name: "Setup - Terraform Format"
+        id: fmt
+        run: terraform fmt -check
+        working-directory: ${{env.working-directory}}
+
+      # The id value is used for reference in the comment step via "steps.plan.outputs.stdout"
+      # Note: Color is disabled to prevent messy characters from appearing in the pull request comment
+      - name: "Run - Terraform Plan"
+        id: plan
+        if: github.event_name == 'pull_request'
+        run: terraform plan -input=false -no-color
+        working-directory: ${{env.working-directory}}
+        continue-on-error: true
+
+      # Submit a comment with the plan output to the pull request
+      - name: "Run - Terraform Comment"
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@0.9.0
+        env:
+          STDOUT: "```${{ steps.plan.outputs.stdout }}```"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: process.env.STDOUT
+            })
+      
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+      
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        run: terraform apply -auto-approve
+        working-directory: ${{env.working-directory}}

@@ -1,0 +1,49 @@
+name: "Development Deploy"
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  terraform:
+    name: Deploy React App
+    runs-on: ubuntu-latest
+    env: 
+      working-directory: ./react-app
+    strategy:
+      matrix:
+        node-version: [12.x]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2.1.0
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      
+      - name: Install dependencies
+        run: yarn
+        working-directory: ${{env.working-directory}}
+
+      - name: Build
+        run: yarn build
+        working-directory: ${{env.working-directory}}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-region: ap-southeast-1
+
+      - name: Copy files to bucket with the AWS CLI
+        run: aws s3 sync ./react-app/build s3://$S3_BUCKET_NAME
+        env: 
+          S3_BUCKET_NAME: otter-dev-s3-frontend-sg
+
+      - name: Create CloudFront Invalidation
+        run: aws cloudfront create-invalidation --distribution-id=$CLOUDFRONT_DISTRIBUTION_ID --paths "/*"
+        env: 
+          CLOUDFRONT_DISTRIBUTION_ID: EHLLOSXXGBG76

@@ -1,0 +1,7 @@
+aws_region           = "ap-southeast-1"
+aws_root_name        = "practice-1"
+aws_region_name      = "sg"
+aws_environment_name = "dev"
+aws_source_name      = "terraform"
+aws_kms_admin        = "zchung1"
+aws_kms_user         = "zchung1"

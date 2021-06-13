@@ -1,2 +1,5 @@
 # Terraform Files
 .terraform*
+
+# Node
+node_modules

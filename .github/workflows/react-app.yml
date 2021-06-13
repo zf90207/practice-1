@@ -41,7 +41,7 @@ jobs:
       - name: Copy files to bucket with the AWS CLI
         run: aws s3 sync ./react-app/build s3://$S3_BUCKET_NAME
         env: 
-          S3_BUCKET_NAME: practice-1-dev-s3-frontend-sg.s3
+          S3_BUCKET_NAME: practice-1-dev-s3-frontend-sg
 
       - name: Create CloudFront Invalidation
         run: aws cloudfront create-invalidation --distribution-id=$CLOUDFRONT_DISTRIBUTION_ID --paths "/*"
